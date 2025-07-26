@@ -26,7 +26,7 @@ jobs:
       - name: "Executar GolangCI-Lint"
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59
+          version: v1.59.1
 
   # ETAPA 2: TESTES DA APLICAÇÃO
   test:
