@@ -1,0 +1,110 @@
+# Nome do workflow que aparecerá na aba "Actions" do GitHub
+name: CI/CD Pipeline - Saudações Aleatórias
+
+# Gatilhos (Triggers): quando a pipeline deve rodar
+on:
+  # Roda a pipeline em pushes para a branch main
+  push:
+    branches: [ "main" ]
+  # Permite que você inicie a pipeline manualmente na UI do GitHub
+  workflow_dispatch:
+
+jobs:
+  # ETAPA 1: LINT DO CÓDIGO
+  build-lint:
+    name: "Lint e Build"
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout do código"
+        uses: actions/checkout@v4
+
+      - name: "Configurar Go"
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: "Executar GolangCI-Lint"
+        uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.59
+
+  # ETAPA 2: TESTES DA APLICAÇÃO
+  test:
+    name: "Testes"
+    runs-on: ubuntu-latest
+    needs: build-lint
+    steps:
+      - name: "Checkout do código"
+        uses: actions/checkout@v4
+
+      - name: "Configurar Go"
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: "Executar os testes"
+        run: go test ./...
+
+  # ETAPA 3: BUILD E PUSH DA IMAGEM DOCKER
+  release:
+    name: "Release da Imagem Docker"
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: "Checkout do código"
+        uses: actions/checkout@v4
+
+      - name: "Fazer login no Docker Hub"
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: "Build e Push da Imagem"
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ secrets.DOCKER_USER }}/ms-saudacoes:${{ github.sha }}
+
+  # ETAPA 4: DEPLOY NO KOYEB
+  deploy:
+    name: "Deploy no Koyeb"
+    runs-on: ubuntu-latest
+    needs: release
+    steps:
+      - name: "Checkout do código"
+        uses: actions/checkout@v4
+
+      - name: "Configurar Terraform"
+        uses: hashicorp/setup-terraform@v3
+
+      - name: "Terraform Apply"
+        env:
+          KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
+          TF_VAR_docker_image_name: ${{ secrets.DOCKER_USER }}/ms-saudacoes:${{ github.sha }}
+        run: |
+          cd infra
+          terraform init
+          terraform apply -auto-approve
+
+  # ETAPA 5: LIMPEZA DO AMBIENTE (MANUAL)
+  cleanup:
+    name: "Destruir Infra (Manual)"
+    runs-on: ubuntu-latest
+    needs: deploy
+    environment: production
+    steps:
+      - name: "Checkout do código"
+        uses: actions/checkout@v4
+
+      - name: "Configurar Terraform"
+        uses: hashicorp/setup-terraform@v3
+
+      - name: "Terraform Destroy"
+        env:
+          KOYEB_TOKEN: ${{ secrets.KOYEB_TOKEN }}
+        run: |
+          cd infra
+          terraform init
+          terraform destroy -auto-approve
