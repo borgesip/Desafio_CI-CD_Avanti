@@ -27,6 +27,7 @@ jobs:
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.60.1
+          args: --timeout=5m
 
   # ETAPA 2: TESTES DA APLICAÇÃO
   test:
