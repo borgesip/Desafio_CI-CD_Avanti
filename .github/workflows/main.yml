@@ -21,12 +21,12 @@ jobs:
       - name: "Configurar Go"
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: "Executar GolangCI-Lint"
         uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.59.1
+          version: v1.60.1
 
   # ETAPA 2: TESTES DA APLICAÇÃO
   test:
@@ -40,7 +40,7 @@ jobs:
       - name: "Configurar Go"
         uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
+          go-version: '1.24'
 
       - name: "Executar os testes"
         run: go test ./...
